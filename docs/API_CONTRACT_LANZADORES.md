@@ -128,10 +128,11 @@ Existe también `GET .../alerts/{alertId}/events` (auditoría privada); esta app
 
 ### Cómo lo usa la app
 
-- La clave de idempotencia se genera por comando y **se conserva en memoria** mientras la pantalla está
-  abierta. Si el resultado no se confirmó (timeout, red) o el servidor falló (5xx), repetir el mismo
-  comando reutiliza la clave; tras un rechazo 4xx o un comando distinto se genera otra. **Nunca hay
-  reintento automático.**
+- La clave de idempotencia se genera por comando y se **guarda en el almacenamiento seguro del teléfono
+  antes de enviarlo** (AGENTS.md §14). Si el resultado no se confirmó (timeout, red) o el servidor falló
+  (5xx), la clave sobrevive al cierre de la pantalla o de la app; al reabrir la emisión se recupera el
+  mismo contenido y repetirlo reutiliza la clave. Se borra con `202` o un rechazo 4xx; un comando
+  distinto usa clave nueva. **Nunca hay reintento automático.**
 - Doble envío bloqueado: el botón se deshabilita y un segundo envío en curso se ignora.
 - Una operación solo se muestra como aceptada con `202 AlertAccepted`; la pantalla indica que la
   distribución sigue pendiente. Tras cada comando se vuelve a consultar el estado real.
@@ -148,7 +149,6 @@ usuarios finales. Lanzadores no registra dispositivos ni usa `installationBearer
   por HTTP aunque FCM esté deshabilitado. No existe `dryRun`. **No se emitirá ninguna alerta real** hasta
   que el equipo confirme una institución y cuentas exclusivamente de prueba.
 - `info.version`/`info.description` de OpenAPI desactualizados (dicen 0.3.0 y "No incluye alertas").
-- Áreas afectadas: AGENTS.md §8.1/§8.3 las contemplan, pero la API no las tiene. Hay que decidir si se
-  retiran del alcance o se añaden al backend.
+- Áreas afectadas: **omitidas por ahora por decisión del usuario** (AGENTS.md §8.3); retomarlas requiere
+  contrato del backend.
 - Cartografía v1 vs v2: confirmar si las apps deben ignorar v1.
-- Persistir la `Idempotency-Key` fuera de memoria (sobrevivir a cierres de la app) queda como propuesta.

@@ -386,7 +386,7 @@ Cada alerta deberá contener, como mínimo:
 
 - Institución.
 - Tipo de emergencia.
-- Áreas afectadas, cuando aplique.
+- Áreas afectadas: **omitidas por ahora** (ver §8.3).
 - Instrucciones breves.
 - Hora de emisión.
 - Estado.
@@ -405,6 +405,8 @@ La configuración general de imSafe puede permitir que una alerta abarque:
 - La institución completa.
 
 La app del lanzador no debe inventar reglas geográficas propias. Deberá respetar las reglas y configuraciones entregadas por imSafeAPI.
+
+**Decisión del usuario (2026-09-24):** imSafeAPI 0.4.0 no contempla áreas afectadas ni alcance de difusión en la alerta (`AlertCreate` solo admite tipo, mensaje y, cuando el tipo lo exige, descripción). Por ahora la app de lanzadores **omite la selección de áreas afectadas**. Retomarla requiere que el backend publique ese contrato y una nueva aprobación del usuario. Las `SafeArea` de cartografía son zonas seguras y nunca se usan como áreas afectadas.
 
 ### 8.4 Actualización y finalización
 
@@ -533,7 +535,14 @@ Para acciones críticas, la aplicación deberá distinguir al menos conceptualme
 
 No se deberá implementar silenciosamente una cola offline que emita una alerta más tarde, reintentos automáticos peligrosos o duplicación de operaciones críticas sin aprobar primero su comportamiento exacto.
 
-La estrategia concreta de reintentos, idempotencia, caché y comportamiento offline queda pendiente de diseño.
+**Idempotencia y reintentos (aprobado 2026-09-24):**
+
+- imSafeAPI exige `Idempotency-Key` (UUID) en emitir, actualizar y finalizar/cancelar, y `expectedRevision` en actualizar y finalizar/cancelar.
+- La app genera una clave por comando y la **guarda en el almacenamiento seguro del teléfono antes de enviarlo**. Si el resultado no se confirmó (red, timeout) o el servidor falló (5xx), la clave se conserva aunque se cierre la pantalla o la app; repetir **el mismo** comando la reutiliza y la API no lo duplica.
+- La clave se descarta cuando la API acepta el comando (`202`) o lo rechaza (4xx). Un comando distinto usa una clave nueva.
+- No hay reintentos automáticos ni cola offline: repetir es siempre una acción explícita del lanzador.
+
+La estrategia de caché y comportamiento offline sigue pendiente de diseño.
 
 ---
 
@@ -546,7 +555,7 @@ La API central deberá soportar, dentro del alcance relacionado con la aplicaci�
 - Solicitudes de acceso a instituciones.
 - Consulta de la institución y configuración necesaria para operar.
 - Consulta de tipos de emergencia configurados cuando corresponda.
-- Consulta de áreas relevantes.
+- Consulta de áreas relevantes (omitida por ahora; ver §8.3).
 - Emisión de alertas autorizadas.
 - Consulta del estado vigente de alertas.
 - Actualización de alertas.
@@ -650,8 +659,6 @@ Continúan pendientes y no deben escogerse silenciosamente:
 - Esquemas exactos de MongoDB.
 - Índices de MongoDB.
 - Estrategia y estructura exacta de auditoría.
-- Estrategia de idempotencia para operaciones críticas.
-- Política exacta de reintentos para operaciones críticas.
 - Caché local y funcionamiento offline.
 - Servicio y comportamiento de notificaciones push para lanzadores.
 - Manejo de secretos del backend e infraestructura.
@@ -826,7 +833,9 @@ Por ello:
 - Comunicación con datos: a través de imSafeAPI.
 - Alertas emitidas únicamente por personal autorizado.
 - Sismo como opción predeterminada en la interfaz de emisión.
-- Otros tipos de emergencia pueden requerir selección de áreas afectadas.
+- Selección de áreas afectadas omitida por ahora: imSafeAPI 0.4.0 no la contempla (§8.3).
+- Contrato de alertas publicado en imSafeAPI 0.4.0 (ver `docs/API_CONTRACT_LANZADORES.md`).
+- Idempotencia de operaciones críticas: `Idempotency-Key` persistida en el teléfono, sin reintentos automáticos (§14).
 - Los lanzadores consultan reportes y deciden si corresponde emitir una alerta.
 - Los reportes no generan alertas masivas automáticamente.
 - Las operaciones críticas requieren autenticación, autorización y auditoría.
