@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:imsafe_lanzadores/app/app.dart';
 import 'package:imsafe_lanzadores/core/errors/api_failure.dart';
-import 'package:imsafe_lanzadores/features/alerts/domain/alert_api_feature.dart';
 import 'package:imsafe_lanzadores/features/alerts/domain/alert_preparation.dart';
 import 'package:imsafe_lanzadores/features/alerts/presentation/alert_preparation_controller.dart';
 
@@ -11,13 +10,6 @@ import '../../helpers/fakes.dart';
 
 const _launcherId = '6ab4876f45cc209961dd0001';
 const _adminId = '6ab4876f45cc209961dd0002';
-
-/// Solo las rutas que existen en imSafeAPI v0.3.0 y usa esta feature.
-const _knownPaths = {
-  '/users/me',
-  '/users/me/institutions',
-  '/users/me/access-requests',
-};
 
 void main() {
   late FakeApi api;
@@ -46,6 +38,11 @@ void main() {
         'GET',
         '/users/me/access-requests',
         (_) async => jsonBody(pageJson([]), 200),
+      )
+      ..on(
+        'GET',
+        '/emergency-types',
+        (_) async => jsonBody(emergencyTypesJson(), 200),
       );
     container = ProviderContainer(
       retry: noAutomaticRetry,
@@ -63,20 +60,18 @@ void main() {
     return container.read(provider.future);
   }
 
-  test('launcher == true → faltan tipos y áreas en la API', () async {
+  test('launcher == true → catálogo de la API con sismo por defecto', () async {
     final result = await prepare(_launcherId);
 
-    expect(result.status, AlertPreparationStatus.featureUnavailable);
+    expect(result.status, AlertPreparationStatus.ready);
     expect(result.institution!.institution.name, 'A');
-    expect(result.missingFeatures, [
-      AlertApiFeature.emergencyTypes,
-      AlertApiFeature.affectedAreas,
+    expect(result.emergencyTypes.map((t) => t.type), [
+      'sismo',
+      'incendio',
+      'otro',
     ]);
-    expect(
-      api.requests.map((r) => r.path),
-      everyElement(isIn(_knownPaths)),
-      reason: 'no se llama a rutas de alertas inexistentes',
-    );
+    expect(result.defaultType!.type, 'sismo');
+    expect(api.requests.where((r) => r.method != 'GET'), isEmpty);
   });
 
   test('administrator sin launcher → permiso denegado', () async {
@@ -84,7 +79,8 @@ void main() {
 
     expect(result.status, AlertPreparationStatus.permissionDenied);
     expect(result.institution!.isAdministrator, isTrue);
-    expect(result.missingFeatures, isEmpty);
+    expect(result.emergencyTypes, isEmpty);
+    expect(api.count('GET', '/emergency-types'), 0);
   });
 
   test('institución que la API no reporta → permiso denegado', () async {

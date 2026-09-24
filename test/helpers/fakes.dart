@@ -82,6 +82,15 @@ Never connectionError(RequestOptions options) => throw DioException(
   type: DioExceptionType.connectionError,
 );
 
+Never timeoutError(RequestOptions options) => throw DioException(
+  requestOptions: options,
+  type: DioExceptionType.receiveTimeout,
+);
+
+ResponseBody apiError(int status, String code) => jsonBody({
+  'error': {'code': code, 'message': code, 'requestId': 'req-1'},
+}, status);
+
 Map<String, Object?> tokensJson(String n) => {
   'accessToken': 'access-$n',
   'refreshToken': 'refresh-$n',
@@ -160,3 +169,81 @@ List<Override> fakeBackendOverrides({
 ];
 
 TokenStore tokenStoreFor(FakeSecureStorage storage) => TokenStore(storage);
+
+/// Ejemplo de `EmergencyTypes` publicado en OpenAPI.
+Map<String, Object?> emergencyTypesJson() => {
+  'schemaVersion': 1,
+  'items': [
+    {
+      'type': 'sismo',
+      'label': 'Sismo',
+      'durationMinutes': 30,
+      'requiresDescription': false,
+    },
+    {
+      'type': 'incendio',
+      'label': 'Incendio',
+      'durationMinutes': 120,
+      'requiresDescription': false,
+    },
+    {
+      'type': 'otro',
+      'label': 'Otro',
+      'durationMinutes': 60,
+      'requiresDescription': true,
+    },
+  ],
+};
+
+Map<String, Object?> alertJson({
+  String id = '6ab4876f45cc209961dd0a01',
+  String institutionId = '6ab4876f45cc209961dd09ad',
+  String type = 'sismo',
+  String state = 'active',
+  int revision = 1,
+  String message = 'Sigan las indicaciones del personal.',
+}) => {
+  'id': id,
+  'institutionId': institutionId,
+  'type': type,
+  'otherDescription': null,
+  'message': message,
+  'state': state,
+  'revision': revision,
+  'createdAt': '2026-09-24T12:00:00.000Z',
+  'updatedAt': '2026-09-24T12:00:00.000Z',
+  'expiresAt': '2026-09-24T12:30:00.000Z',
+  'endedAt': null,
+  'lastEventId': '6ab4876f45cc209961dd0b01',
+};
+
+Map<String, Object?> alertPageJson(List<Object?> items) => {
+  ...pageJson(items),
+  'serverTime': '2026-09-24T12:05:00.000Z',
+};
+
+Map<String, Object?> acceptedJson({
+  String alertId = '6ab4876f45cc209961dd0a01',
+  int revision = 1,
+}) => {
+  'alertId': alertId,
+  'eventId': '6ab4876f45cc209961dd0b02',
+  'acceptedRevision': revision,
+  'acceptedAt': '2026-09-24T12:00:00.000Z',
+};
+
+Map<String, Object?> deliveryJson() => {
+  'alertId': '6ab4876f45cc209961dd0a01',
+  'eventId': '6ab4876f45cc209961dd0b01',
+  'revision': 1,
+  'outboxState': 'pending',
+  'fanoutComplete': false,
+  'counts': {
+    'pending': 0,
+    'accepted': 0,
+    'failed': 0,
+    'skipped': 0,
+    'received': 0,
+    'opened': 0,
+  },
+};

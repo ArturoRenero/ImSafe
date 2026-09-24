@@ -6,8 +6,10 @@ import '../features/access/domain/launcher_access.dart';
 import '../features/access/presentation/access_screen.dart';
 import '../features/access/presentation/launcher_access_controller.dart';
 import '../features/access/presentation/launcher_home_screen.dart';
+import '../features/alerts/presentation/active_alerts_screen.dart';
+import '../features/alerts/presentation/alert_detail_screen.dart';
 import '../features/alerts/presentation/alert_institution_screen.dart';
-import '../features/alerts/presentation/alert_preparation_screen.dart';
+import '../features/alerts/presentation/emit_alert_screen.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/register_screen.dart';
 import '../features/auth/presentation/session_controller.dart';
@@ -30,12 +32,23 @@ abstract final class AppRoutes {
   /// Inicio del lanzador autorizado (`capabilities.launcher` en la API).
   static const home = '/home';
 
-  /// Selección de institución para preparar una alerta.
+  /// Selección de institución para emitir una alerta.
   static const alertInstitution = '/alerts/new';
 
-  /// Preparación de una alerta en una institución concreta.
-  static String alertPreparation(String institutionId) =>
+  /// Emisión de una alerta en una institución concreta.
+  static String alertEmit(String institutionId) =>
       '$alertInstitution/$institutionId';
+
+  /// Prefijo de las rutas de alertas por institución.
+  static const institutions = '/institutions';
+
+  /// Alertas activas de una institución.
+  static String institutionAlerts(String institutionId) =>
+      '$institutions/$institutionId/alerts';
+
+  /// Estado actual de una alerta.
+  static String alertDetail(String institutionId, String alertId) =>
+      '${institutionAlerts(institutionId)}/$alertId';
 }
 
 const _publicRoutes = {AppRoutes.login, AppRoutes.register};
@@ -69,7 +82,8 @@ String? resolveRedirect({
         location == AppRoutes.home ||
         location == AppRoutes.access ||
         location == AppRoutes.alertInstitution ||
-        location.startsWith('${AppRoutes.alertInstitution}/');
+        location.startsWith('${AppRoutes.alertInstitution}/') ||
+        location.startsWith('${AppRoutes.institutions}/');
     return allowed ? null : AppRoutes.home;
   }
   return goTo(AppRoutes.access);
@@ -120,8 +134,23 @@ final routerProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: ':institutionId',
-            builder: (context, state) => AlertPreparationScreen(
+            builder: (context, state) => EmitAlertScreen(
               institutionId: state.pathParameters['institutionId']!,
+            ),
+          ),
+        ],
+      ),
+      GoRoute(
+        path: '${AppRoutes.institutions}/:institutionId/alerts',
+        builder: (context, state) => ActiveAlertsScreen(
+          institutionId: state.pathParameters['institutionId']!,
+        ),
+        routes: [
+          GoRoute(
+            path: ':alertId',
+            builder: (context, state) => AlertDetailScreen(
+              institutionId: state.pathParameters['institutionId']!,
+              alertId: state.pathParameters['alertId']!,
             ),
           ),
         ],

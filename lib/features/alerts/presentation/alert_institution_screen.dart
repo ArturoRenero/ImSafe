@@ -37,7 +37,7 @@ class AlertInstitutionScreen extends ConsumerWidget {
                     InstitutionCapabilityTile(
                       item: item,
                       onSelected: () => context.push(
-                        AppRoutes.alertPreparation(item.institution.id),
+                        AppRoutes.alertEmit(item.institution.id),
                       ),
                     ),
                 ],

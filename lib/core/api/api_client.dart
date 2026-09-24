@@ -17,7 +17,7 @@ typedef Json = Map<String, Object?>;
 /// crea su propia instancia de Dio y la UI no hace llamadas HTTP.
 ///
 /// `authenticated: false` corresponde a operaciones con `security: []` en
-/// OpenAPI. No incluye reintentos automáticos (salvo repetir una vez una
+/// OpenAPI. `headers` se usa para cabeceras de contrato como `Idempotency-Key`. No incluye reintentos automáticos (salvo repetir una vez una
 /// solicitud rechazada con 401 tras renovar la sesión, ver [AuthInterceptor]).
 class ApiClient {
   ApiClient(this._dio);
@@ -40,9 +40,13 @@ class ApiClient {
     String path, {
     Object? data,
     bool authenticated = true,
+    Map<String, Object?>? headers,
   }) => _send(
-    () =>
-        _dio.post<Object?>(path, data: data, options: _options(authenticated)),
+    () => _dio.post<Object?>(
+      path,
+      data: data,
+      options: _options(authenticated, headers),
+    ),
   );
 
   Future<Object?> put(String path, {Object? data, bool authenticated = true}) =>
@@ -58,9 +62,13 @@ class ApiClient {
     String path, {
     Object? data,
     bool authenticated = true,
+    Map<String, Object?>? headers,
   }) => _send(
-    () =>
-        _dio.patch<Object?>(path, data: data, options: _options(authenticated)),
+    () => _dio.patch<Object?>(
+      path,
+      data: data,
+      options: _options(authenticated, headers),
+    ),
   );
 
   Future<Object?> delete(
@@ -75,8 +83,8 @@ class ApiClient {
     ),
   );
 
-  Options _options(bool authenticated) =>
-      Options(extra: {AuthExtra.skipAuth: !authenticated});
+  Options _options(bool authenticated, [Map<String, Object?>? headers]) =>
+      Options(extra: {AuthExtra.skipAuth: !authenticated}, headers: headers);
 
   Future<Object?> _send(Future<Response<Object?>> Function() request) async {
     try {

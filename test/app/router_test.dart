@@ -71,15 +71,22 @@ void main() {
   test('flujo de alertas solo con launcher reportado por la API', () {
     final launcher = AsyncData<LauncherAccess?>(_access(launcher: true));
     final notLauncher = AsyncData<LauncherAccess?>(_access(launcher: false));
-    final preparation = AppRoutes.alertPreparation('6ab4876f45cc209961dd09ad');
+    const id = '6ab4876f45cc209961dd09ad';
+    final alertRoutes = [
+      AppRoutes.alertInstitution,
+      AppRoutes.alertEmit(id),
+      AppRoutes.institutionAlerts(id),
+      AppRoutes.alertDetail(id, '6ab4876f45cc209961dd0a01'),
+    ];
 
-    expect(_redirect(AppRoutes.alertInstitution, access: launcher), isNull);
-    expect(_redirect(preparation, access: launcher), isNull);
+    for (final route in alertRoutes) {
+      expect(_redirect(route, access: launcher), isNull, reason: route);
+      expect(
+        _redirect(route, access: notLauncher),
+        AppRoutes.access,
+        reason: route,
+      );
+    }
     expect(_redirect('/alerts/newx', access: launcher), AppRoutes.home);
-    expect(
-      _redirect(AppRoutes.alertInstitution, access: notLauncher),
-      AppRoutes.access,
-    );
-    expect(_redirect(preparation, access: notLauncher), AppRoutes.access);
   });
 }

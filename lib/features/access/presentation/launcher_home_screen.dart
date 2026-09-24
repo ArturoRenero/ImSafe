@@ -58,9 +58,11 @@ class LauncherHomeScreen extends ConsumerWidget {
                       child: ListTile(
                         leading: const Icon(Icons.verified_user_outlined),
                         title: Text(item.institution.name),
-                        subtitle: item.institution.address == null
-                            ? null
-                            : Text(item.institution.address!),
+                        subtitle: const Text('Ver alertas activas'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => context.push(
+                          AppRoutes.institutionAlerts(item.institution.id),
+                        ),
                       ),
                     ),
                   const SizedBox(height: 16),
@@ -70,19 +72,11 @@ class LauncherHomeScreen extends ConsumerWidget {
                     // Con una sola institución autorizada se selecciona sola.
                     onPressed: () => context.push(
                       access.launcherInstitutions.length == 1
-                          ? AppRoutes.alertPreparation(
+                          ? AppRoutes.alertEmit(
                               access.launcherInstitutions.single.institution.id,
                             )
                           : AppRoutes.alertInstitution,
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  const StatusMessage(
-                    tone: StatusTone.info,
-                    message:
-                        'La emisión de alertas y la consulta de reportes aún '
-                        'no están disponibles: la versión actual de imSafeAPI '
-                        'no ofrece esas operaciones.',
                   ),
                   const SizedBox(height: 16),
                   OutlinedButton(

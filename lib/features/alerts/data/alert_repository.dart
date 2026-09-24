@@ -1,40 +1,105 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../domain/alert_api_feature.dart';
+import '../../../core/api/api_client.dart';
+import '../../../core/utils/json_read.dart';
+import '../domain/alert_command.dart';
+import 'alert_dtos.dart';
 
-/// Operaciones de alertas de imSafeAPI.
+/// Operaciones de alertas de imSafeAPI usadas por Lanzadores.
 ///
-/// imSafeAPI v0.3.0 no publica endpoints de alertas, tipos de emergencia ni
-/// áreas afectadas. Cada operación falla con [AlertFeatureUnavailable] sin
-/// hacer ninguna solicitud: no se inventan rutas ni cuerpos JSON. Cuando exista
-/// el contrato, este repositorio recibirá el `ApiClient` y los DTO derivados de
-/// OpenAPI, y los tipos de retorno dejarán de ser `Never`.
+/// Los comandos (emitir, actualizar, finalizar o cancelar) exigen
+/// `Idempotency-Key`. Este repositorio no reintenta: repetir un comando con
+/// la misma clave es una decisión explícita del controlador.
 class AlertRepository {
-  const AlertRepository();
+  AlertRepository(this._api);
 
-  /// Tipos de emergencia configurados para la institución.
-  Future<Never> fetchEmergencyTypes(String institutionId) =>
-      _unavailable(AlertApiFeature.emergencyTypes);
+  final ApiClient _api;
 
-  /// Áreas que el lanzador puede seleccionar como afectadas. No son las
-  /// `SafeArea` de cartografía (zonas seguras).
-  Future<Never> fetchAffectedAreas(String institutionId) =>
-      _unavailable(AlertApiFeature.affectedAreas);
+  /// `GET /emergency-types`.
+  Future<List<EmergencyType>> fetchEmergencyTypes() async {
+    final data = await _api.get('/emergency-types');
+    return parseJson(data, parseEmergencyTypes);
+  }
 
-  /// Emisión de una alerta. El resto de los datos se definirá con el contrato.
-  Future<Never> createAlert({required String institutionId}) =>
-      _unavailable(AlertApiFeature.createAlert);
+  /// `GET /institutions/{id}/alerts?state=active`. Solo puede haber una
+  /// alerta activa por tipo, así que una página de 100 basta.
+  Future<List<InstitutionAlert>> fetchActiveAlerts(String institutionId) async {
+    final data = await _api.get(
+      '/institutions/$institutionId/alerts',
+      queryParameters: {'state': 'active', 'page': 1, 'limit': 100},
+    );
+    return parseJson(
+      data,
+      (json) => [
+        for (final item in json.requireList('items'))
+          if (item is Json)
+            InstitutionAlert.fromJson(item)
+          else
+            throw const FormatException('Alerta inválida en la página'),
+      ],
+    );
+  }
 
-  Future<Never> updateAlert({required String alertId}) =>
-      _unavailable(AlertApiFeature.updateAlert);
+  /// `GET /institutions/{id}/alerts/{alertId}`.
+  Future<InstitutionAlert> fetchAlert(
+    String institutionId,
+    String alertId,
+  ) async {
+    final data = await _api.get('/institutions/$institutionId/alerts/$alertId');
+    return parseJson(data, InstitutionAlert.fromJson);
+  }
 
-  Future<Never> finishAlert({required String alertId}) =>
-      _unavailable(AlertApiFeature.finishAlert);
+  /// `GET /institutions/{id}/alerts/{alertId}/delivery-status`.
+  Future<AlertDeliveryStatus> fetchDeliveryStatus(
+    String institutionId,
+    String alertId,
+  ) async {
+    final data = await _api.get(
+      '/institutions/$institutionId/alerts/$alertId/delivery-status',
+    );
+    return parseJson(data, AlertDeliveryStatus.fromJson);
+  }
 
-  static Future<Never> _unavailable(AlertApiFeature feature) =>
-      Future.error(AlertFeatureUnavailable(feature));
+  /// Envía [command] con [idempotencyKey]. `202 AlertAccepted` significa que
+  /// la API aceptó y persistió el comando; la distribución sigue pendiente.
+  Future<AlertAccepted> send(
+    AlertCommand command,
+    String idempotencyKey,
+  ) async {
+    final headers = {'Idempotency-Key': idempotencyKey};
+    final base = '/institutions/${command.institutionId}/alerts';
+    final data = switch (command) {
+      EmitAlert() => await _api.post(
+        base,
+        headers: headers,
+        data: {
+          'type': command.type,
+          'message': command.message,
+          'otherDescription': ?command.otherDescription,
+        },
+      ),
+      UpdateAlertMessage() => await _api.patch(
+        '$base/${command.alertId}',
+        headers: headers,
+        data: {
+          'expectedRevision': command.expectedRevision,
+          'message': command.message,
+        },
+      ),
+      TransitionAlert() => await _api.post(
+        '$base/${command.alertId}/transitions',
+        headers: headers,
+        data: {
+          'expectedRevision': command.expectedRevision,
+          'state': command.target.name,
+          'reason': command.reason,
+        },
+      ),
+    };
+    return parseJson(data, AlertAccepted.fromJson);
+  }
 }
 
 final alertRepositoryProvider = Provider<AlertRepository>(
-  (ref) => const AlertRepository(),
+  (ref) => AlertRepository(ref.watch(apiClientProvider)),
 );

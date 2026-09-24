@@ -23,6 +23,7 @@ import 'package:imsafe_lanzadores/core/storage/secure_storage.dart';
 import 'package:imsafe_lanzadores/core/storage/token_store.dart';
 import 'package:imsafe_lanzadores/features/access/data/access_repository.dart';
 import 'package:imsafe_lanzadores/features/access/presentation/launcher_access_controller.dart';
+import 'package:imsafe_lanzadores/features/alerts/data/alert_repository.dart';
 import 'package:imsafe_lanzadores/features/alerts/domain/alert_preparation.dart';
 import 'package:imsafe_lanzadores/features/alerts/presentation/alert_preparation_controller.dart';
 import 'package:imsafe_lanzadores/features/auth/data/auth_repository.dart';
@@ -85,7 +86,7 @@ void main() {
     expect(expired, 0);
   }, skip: skip);
 
-  test('preparar alerta respeta capabilities.launcher de la API', () async {
+  test('preparar alerta respeta launcher y lee catálogo y alertas', () async {
     final requests = <String>[];
     final container = ProviderContainer(
       retry: noAutomaticRetry,
@@ -125,18 +126,25 @@ void main() {
       expect(
         result.status,
         item.isLauncher
-            ? AlertPreparationStatus.featureUnavailable
+            ? AlertPreparationStatus.ready
             : AlertPreparationStatus.permissionDenied,
         reason:
             '${item.institution.name}: launcher=${item.isLauncher}, '
             'administrator=${item.isAdministrator}',
       );
+      if (item.isLauncher) {
+        expect(result.defaultType?.type, 'sismo');
+        // Lectura del estado vigente; nunca se emite nada.
+        await container
+            .read(alertRepositoryProvider)
+            .fetchActiveAlerts(item.institution.id);
+      }
     }
 
     await container.read(sessionControllerProvider.notifier).logout();
     expect(requests.where((r) => !r.startsWith('GET ')), [
       'POST /auth/login',
       'POST /auth/logout',
-    ], reason: 'preparar una alerta no escribe nada en la API');
+    ], reason: 'preparar una alerta y consultar alertas no escribe nada');
   }, skip: skip);
 }
