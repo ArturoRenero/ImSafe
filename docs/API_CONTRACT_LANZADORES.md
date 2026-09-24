@@ -1,7 +1,12 @@
 # Contrato imSafeAPI usado por la app de Lanzadores
 
 > Resumen de apoyo. **La fuente de verdad es `openapi.json`** de imSafeAPI.
-> Revisado contra imSafeAPI **v0.2.0** (OpenAPI 3.0.3) el 2026-09-23.
+> Versión real vigente: imSafeAPI **v0.3.0** (OpenAPI 3.0.3), verificada el 2026-09-24.
+>
+> Etiquetas usadas en este documento:
+> - **IMPLEMENTADO EN API**: existe en `openapi.json` y se probó contra la API real.
+> - **PENDIENTE EN BACKEND**: la app lo necesita y la API todavía no lo ofrece.
+> - **PROPUESTA / POR DEFINIR**: preguntas abiertas; nada de esto es un contrato.
 
 - Base URL (production): `https://api.imsafe.tlajomulco.tecnm.mx/api/v1` (se pasa con `IMSAFE_API_BASE_URL`, nunca en el código).
 - OpenAPI: `https://api.imsafe.tlajomulco.tecnm.mx/openapi.json` (`servers: [{ url: "/" }]`).
@@ -28,7 +33,7 @@ Status documentados en todas las operaciones: `400` entrada inválida · `401` a
 
 Query `page` (≥1, por defecto 1) y `limit` (1–100, por defecto 20). Respuesta `{ items, page, limit, total }`.
 
-## Operaciones
+## Operaciones — IMPLEMENTADO EN API
 
 | Operación | Método y ruta | Auth | Request | Response | Errores relevantes |
 |---|---|---|---|---|---|
@@ -52,19 +57,90 @@ Query `page` (≥1, por defecto 1) y `limit` (1–100, por defecto 20). Respuest
 - `Permission`: `_id`, `institutionId`, `userId`, `role` (`"launcher"`), `status` (`pending` | `approved` | `rejected` | `revoked`), `requestedAt`, `createdAt`, `updatedAt`; opcionales `decidedBy`, `decidedAt`, `revokedBy`, `revokedAt`, `__v`.
 - `Point`: `{ type: "Point", coordinates: [longitud, latitud] }`.
 
-## Cómo decide la app la autorización
+## Autorización: `administrator` vs `launcher` — IMPLEMENTADO EN API
 
-- **Lanzador autorizado en una institución** ⇔ `MyInstitution.capabilities.launcher == true` (dato calculado por la API).
+- `MyInstitution.capabilities` trae dos banderas independientes calculadas por la API:
+  - `administrator`: administra la institución (operaciones de la administración web, no de esta app).
+  - `launcher`: la API autoriza al usuario como lanzador en esa institución.
+- **`launcher == true` es obligatorio para intentar crear una alerta.** `administrator == true` **no**
+  implica `launcher`; la API no lo documenta y la app no lo asume.
+- La app solo refleja lo que reporta la API (`GET /users/me/institutions`, consultado de nuevo al entrar
+  al flujo); no concede ni simula permisos. Al emitir, la API volverá a validar el permiso (403 si no).
 - El estado de cada solicitud se muestra con `Permission.status` tal como llega.
-- La API vuelve a validar el permiso en cada operación; la app no concede ni simula autorización.
 
-## Fuera del contrato actual (bloquea features de Lanzadores)
+## Cartografía — IMPLEMENTADO EN API (no la usa esta app)
 
-imSafeAPI v0.2.0 declara: *"No incluye alertas ni geolocalización."* No existen endpoints de:
+| Operación | Método y ruta | Auth |
+|---|---|---|
+| Manifiesto de zonas seguras | `GET /api/v2/institutions/{institutionId}/cartography/published` | No |
+| Publicación de zonas seguras | `GET /api/v2/institutions/{institutionId}/cartography/publications/{version}` | No |
 
-- `EmergencyAlert` (crear, consultar, actualizar, finalizar).
-- `IncidentReport` (consultar).
-- `EmergencyType`, `Area`, instrucciones validadas.
-- Idempotency keys para operaciones críticas.
+- **v2 es la versión vigente** (perímetro + `SafeArea`: `id`, `name`, `type` ∈ {cancha, estacionamiento,
+  patio, otro}, `geometry`; coordenadas `[longitud, latitud]`).
+- Existen también rutas v1 (`/api/v1/.../cartography/...`, solo perímetro). **Backend debe confirmar**
+  si las apps deben ignorarlas; esta app no usa ninguna de las dos.
+- **Las `SafeArea` son zonas seguras, no áreas afectadas de una alerta.** La API indica que *"no expresa
+  aprobación para tipos de emergencia"*.
+- Mapas, zonas seguras y su caché pertenecen a la app de usuarios finales; Lanzadores no los implementa.
+- Las operaciones administrativas (crear/editar institución, decidir solicitudes, revocar permisos,
+  editar/publicar cartografía) existen pero **no son de esta app**.
 
-Las operaciones administrativas (crear/editar institución, listar/decidir solicitudes, listar/revocar permisos) existen pero **no son de esta app**.
+## Alertas — PENDIENTE EN BACKEND
+
+imSafeAPI v0.3.0 declara: *"No incluye alertas ni geolocalización."* Revisión completa de `openapi.json`
+(paths y `components.schemas`): no existe ninguna de estas operaciones.
+
+| Operación que necesita Lanzadores | Estado |
+|---|---|
+| Consultar tipos de emergencia disponibles para una institución | PENDIENTE EN BACKEND |
+| Consultar áreas afectadas / alcance de difusión seleccionables | PENDIENTE EN BACKEND |
+| Crear (emitir) una alerta | PENDIENTE EN BACKEND |
+| Consultar el estado vigente de una alerta | PENDIENTE EN BACKEND |
+| Actualizar una alerta | PENDIENTE EN BACKEND |
+| Finalizar una alerta | PENDIENTE EN BACKEND |
+| Idempotencia / `dryRun` / institución de pruebas | PENDIENTE EN BACKEND |
+
+Flujo acordado (sin FCM en Lanzadores):
+
+1. Lanzadores **solicita** la creación de la alerta a imSafeAPI con su JWT (HTTPS).
+2. imSafeAPI **valida el permiso** (`launcher`) y **registra** la alerta.
+3. imSafeAPI **distribuye** las notificaciones a usuarios finales (FCM u otro mecanismo del backend).
+
+La app de Lanzadores **no** envía FCM, **no** contiene Firebase Admin SDK ni credenciales de Firebase.
+Una alerta registrada por la API, una notificación enviada a FCM y una alerta recibida por un dispositivo
+son estados distintos; la app solo puede afirmar lo que la API confirme.
+
+Estado en la app: el flujo *Generar alerta* existe (selección de institución, validación de `launcher`,
+pantalla de preparación), pero `AlertRepository` falla con `AlertFeatureUnavailable` **sin hacer
+solicitudes HTTP** y la pantalla no permite enviar nada.
+
+## Contrato que debe definir backend — PROPUESTA / POR DEFINIR
+
+Nada de lo siguiente es un contrato; son las preguntas que cada operación debe responder en OpenAPI.
+
+**Tipos de emergencia**
+- ¿Catálogo global o por institución? Ruta, paginación, campos de cada tipo.
+- Cómo se identifica *sismo* para ofrecerlo como opción predeterminada (AGENTS.md §8.1).
+- Qué tipos exigen áreas afectadas y cuáles cubren toda la institución.
+
+**Áreas afectadas / alcance de difusión**
+- De dónde salen (no son `SafeArea`), cómo se relacionan con el perímetro y con áreas contiguas
+  (AGENTS.md §8.3). Si el lanzador elige áreas o solo el tipo (el diagrama del backend solo menciona
+  institución y tipo).
+
+**Crear alerta**
+- Método, ruta, cuerpo (institución, tipo, áreas, instrucciones breves) y respuesta (id, estado,
+  hora de emisión, emisor).
+- Instrucciones breves (AGENTS.md §8.2): ¿las elige el lanzador de un catálogo validado o las resuelve la API?
+- Estados posibles de una alerta y sus transiciones.
+- Significado de `403` (sin `launcher`), `409` (¿alerta activa duplicada?) y demás códigos.
+- Idempotencia: cabecera/clave o decisión explícita de no reintentar.
+- Si la respuesta distingue "registrada" de "distribución solicitada".
+
+**Consultar / actualizar / finalizar alerta**
+- Rutas, campos modificables, estados permitidos para cada transición, auditoría.
+
+**Pruebas**
+- Institución de pruebas, `dryRun` o destinatarios controlados para probar el POST real sin notificar a
+  usuarios reales. Hoy no existe: "Tecnologico de Morelia" (propuesta como institución de prueba) tiene
+  nombre de institución real y no hay instituciones que coincidan con "prueba"/"test".
