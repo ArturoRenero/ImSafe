@@ -206,7 +206,8 @@ class _AlertDetailState extends ConsumerState<_AlertDetail> {
             tone: StatusTone.success,
             message:
                 'imSafeAPI aceptó el cambio (revisión '
-                '${value.acceptedRevision}). La distribución está pendiente.',
+                '${value.acceptedRevision}). Consulta abajo el estado de su '
+                'distribución.',
           ),
         ],
         if (alert.state == AlertState.active && isLauncher) ...[
@@ -242,7 +243,7 @@ class _DeliverySummary extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Estado de envío: ${status.outboxState}'
+          'Estado de envío: ${outboxStateLabel(status.outboxState)}'
           '${status.fanoutComplete ? '' : ' (conteo aún no definitivo)'}',
         ),
         Text(

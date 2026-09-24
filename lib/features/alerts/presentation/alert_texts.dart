@@ -65,6 +65,15 @@ String alertStateLabel(AlertState state) => switch (state) {
   AlertState.expired => 'Expirada',
 };
 
+/// `AlertDeliveryStatus.outboxState`; el valor crudo si la API agrega otro.
+String outboxStateLabel(String state) => switch (state) {
+  'pending' => 'pendiente',
+  'done' => 'procesada para todos los destinatarios',
+  'superseded' => 'reemplazada por un cambio posterior',
+  'expired' => 'expirada',
+  _ => state,
+};
+
 /// Etiqueta del catálogo de la API; el valor crudo si aún no se cargó.
 String emergencyTypeLabel(List<EmergencyType>? catalog, String type) =>
     catalog?.where((t) => t.type == type).firstOrNull?.label ?? type;

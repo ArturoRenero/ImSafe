@@ -277,7 +277,7 @@ void main() {
     await tap(tester, find.text('Sismo'));
     expect(find.byType(AlertDetailScreen), findsOneWidget);
     expect(find.text('Estado: Activa'), findsOneWidget);
-    expect(find.textContaining('Estado de envío: pending'), findsOneWidget);
+    expect(find.textContaining('Estado de envío: pendiente'), findsOneWidget);
 
     await tap(tester, find.text('Finalizar alerta'));
     await tester.enterText(
