@@ -1,7 +1,9 @@
 # Contrato imSafeAPI usado por la app de Lanzadores
 
 > Resumen de apoyo. **La fuente de verdad es `openapi.json`** de imSafeAPI.
-> Versión real vigente: imSafeAPI **v0.3.0** (OpenAPI 3.0.3), verificada el 2026-09-24.
+> Versión vigente: imSafeAPI **0.4.0** según el equipo de backend (2026-09-24). `openapi.json` todavía
+> declara `info.version: "0.3.0"` y una descripción que dice "No incluye alertas", pero **ya publica
+> las operaciones de alertas** documentadas abajo. Backend debe actualizar `info`.
 >
 > Etiquetas usadas en este documento:
 > - **IMPLEMENTADO EN API**: existe en `openapi.json` y se probó contra la API real.
@@ -85,62 +87,68 @@ Query `page` (≥1, por defecto 1) y `limit` (1–100, por defecto 20). Respuest
 - Las operaciones administrativas (crear/editar institución, decidir solicitudes, revocar permisos,
   editar/publicar cartografía) existen pero **no son de esta app**.
 
-## Alertas — PENDIENTE EN BACKEND
+## Alertas — IMPLEMENTADO EN API (0.4.0)
 
-imSafeAPI v0.3.0 declara: *"No incluye alertas ni geolocalización."* Revisión completa de `openapi.json`
-(paths y `components.schemas`): no existe ninguna de estas operaciones.
+| Operación | Método y ruta | Auth | Request | Response |
+|---|---|---|---|---|
+| Catálogo de tipos | `GET /emergency-types` | Bearer | — | `200 EmergencyTypes` |
+| Emitir alerta | `POST /institutions/{institutionId}/alerts` | Bearer + `Idempotency-Key` | `AlertCreate` | `202 AlertAccepted` |
+| Alertas vigentes / historial | `GET /institutions/{institutionId}/alerts?state=&page=&limit=` | Bearer | `state` ∈ {active, closed, cancelled, expired} | `200 InstitutionAlertPage` (+ `serverTime`) |
+| Estado actual | `GET /institutions/{institutionId}/alerts/{alertId}` | Bearer | — | `200 InstitutionAlert` |
+| Actualizar mensaje | `PATCH /institutions/{institutionId}/alerts/{alertId}` | Bearer + `Idempotency-Key` | `AlertUpdate` `{expectedRevision, message}` | `202 AlertAccepted` |
+| Finalizar o cancelar | `POST /institutions/{institutionId}/alerts/{alertId}/transitions` | Bearer + `Idempotency-Key` | `AlertTransition` `{expectedRevision, state: closed\|cancelled, reason}` | `202 AlertAccepted` |
+| Distribución del último evento | `GET /institutions/{institutionId}/alerts/{alertId}/delivery-status` | Bearer | — | `200 AlertDeliveryStatus` |
 
-| Operación que necesita Lanzadores | Estado |
-|---|---|
-| Consultar tipos de emergencia disponibles para una institución | PENDIENTE EN BACKEND |
-| Consultar áreas afectadas / alcance de difusión seleccionables | PENDIENTE EN BACKEND |
-| Crear (emitir) una alerta | PENDIENTE EN BACKEND |
-| Consultar el estado vigente de una alerta | PENDIENTE EN BACKEND |
-| Actualizar una alerta | PENDIENTE EN BACKEND |
-| Finalizar una alerta | PENDIENTE EN BACKEND |
-| Idempotencia / `dryRun` / institución de pruebas | PENDIENTE EN BACKEND |
+Existe también `GET .../alerts/{alertId}/events` (auditoría privada); esta app todavía no la usa.
 
-Flujo acordado (sin FCM en Lanzadores):
+### Schemas relevantes
 
-1. Lanzadores **solicita** la creación de la alerta a imSafeAPI con su JWT (HTTPS).
-2. imSafeAPI **valida el permiso** (`launcher`) y **registra** la alerta.
-3. imSafeAPI **distribuye** las notificaciones a usuarios finales (FCM u otro mecanismo del backend).
+- `EmergencyTypes`: `{schemaVersion: 1, items: [{type, label, durationMinutes ∈ {30,60,120,240}, requiresDescription}]}`.
+  Catálogo **global y controlado por la API** (hoy: sismo, incendio, inundacion, fuga_gas, otro). La app
+  preselecciona `sismo` si el catálogo lo incluye (AGENTS.md §8.1) y no fija otros tipos en código.
+- `AlertCreate`: `{type, message(1–1000, ≤1800 bytes)}`; si el tipo tiene `requiresDescription` (hoy `otro`)
+  además `otherDescription(1–160, ≤480 bytes)`. **No existe campo de áreas afectadas.**
+- `AlertAccepted`: `{alertId, eventId, acceptedRevision, acceptedAt}` — aceptada y persistida;
+  **distribución pendiente**.
+- `InstitutionAlert`: `id, institutionId, type, otherDescription?, message, state, revision, createdAt,
+  updatedAt, expiresAt, endedAt?, lastEventId`.
+- `AlertDeliveryStatus`: `outboxState ∈ {pending, done, superseded, expired}`, `fanoutComplete`,
+  `counts {pending, accepted, failed, skipped, received, opened}`. `accepted` = aceptación del proveedor,
+  no entrega; `received/opened` son acuses autodeclarados.
 
-La app de Lanzadores **no** envía FCM, **no** contiene Firebase Admin SDK ni credenciales de Firebase.
-Una alerta registrada por la API, una notificación enviada a FCM y una alerta recibida por un dispositivo
-son estados distintos; la app solo puede afirmar lo que la API confirme.
+### Reglas del backend que la app respeta
 
-Estado en la app: el flujo *Generar alerta* existe (selección de institución, validación de `launcher`,
-pantalla de preparación), pero `AlertRepository` falla con `AlertFeatureUnavailable` **sin hacer
-solicitudes HTTP** y la pantalla no permite enviar nada.
+- Solo un `launcher` aprobado puede emitir; un administrador sin `launcher` no puede (403).
+- **Una alerta activa por institución y tipo** (`409 ACTIVE_ALERT_EXISTS`).
+- `Idempotency-Key` (UUID) obligatoria en comandos: repetir la **misma** operación/cuerpo/clave no la
+  duplica; otra carga con la misma clave → `409 IDEMPOTENCY_CONFLICT`.
+- `expectedRevision` en actualizar/finalizar/cancelar (`409 REVISION_CONFLICT`); estados terminales no se
+  reactivan (`409 INVALID_TRANSITION`, `ALERT_EXPIRED`).
+- `400 NOTIFICATION_TOO_LARGE` si el payload de notificación supera 4096 bytes.
 
-## Contrato que debe definir backend — PROPUESTA / POR DEFINIR
+### Cómo lo usa la app
 
-Nada de lo siguiente es un contrato; son las preguntas que cada operación debe responder en OpenAPI.
+- La clave de idempotencia se genera por comando y **se conserva en memoria** mientras la pantalla está
+  abierta. Si el resultado no se confirmó (timeout, red) o el servidor falló (5xx), repetir el mismo
+  comando reutiliza la clave; tras un rechazo 4xx o un comando distinto se genera otra. **Nunca hay
+  reintento automático.**
+- Doble envío bloqueado: el botón se deshabilita y un segundo envío en curso se ignora.
+- Una operación solo se muestra como aceptada con `202 AlertAccepted`; la pantalla indica que la
+  distribución sigue pendiente. Tras cada comando se vuelve a consultar el estado real.
+- Lanzadores **no** envía FCM ni contiene credenciales de Firebase: el backend distribuye.
 
-**Tipos de emergencia**
-- ¿Catálogo global o por institución? Ruta, paginación, campos de cada tipo.
-- Cómo se identifica *sismo* para ofrecerlo como opción predeterminada (AGENTS.md §8.1).
-- Qué tipos exigen áreas afectadas y cuáles cubren toda la institución.
+## Dispositivos receptores — NO ES DE ESTA APP
 
-**Áreas afectadas / alcance de difusión**
-- De dónde salen (no son `SafeArea`), cómo se relacionan con el perímetro y con áreas contiguas
-  (AGENTS.md §8.3). Si el lanzador elige áreas o solo el tipo (el diagrama del backend solo menciona
-  institución y tipo).
+`/devices/...` (registro anónimo, credencial `dev_...`, suscripciones, acuses) pertenece a la app de
+usuarios finales. Lanzadores no registra dispositivos ni usa `installationBearer`.
 
-**Crear alerta**
-- Método, ruta, cuerpo (institución, tipo, áreas, instrucciones breves) y respuesta (id, estado,
-  hora de emisión, emisor).
-- Instrucciones breves (AGENTS.md §8.2): ¿las elige el lanzador de un catálogo validado o las resuelve la API?
-- Estados posibles de una alerta y sus transiciones.
-- Significado de `403` (sin `launcher`), `409` (¿alerta activa duplicada?) y demás códigos.
-- Idempotencia: cabecera/clave o decisión explícita de no reintentar.
-- Si la respuesta distingue "registrada" de "distribución solicitada".
+## PENDIENTE EN BACKEND / POR DEFINIR
 
-**Consultar / actualizar / finalizar alerta**
-- Rutas, campos modificables, estados permitidos para cada transición, auditoría.
-
-**Pruebas**
-- Institución de pruebas, `dryRun` o destinatarios controlados para probar el POST real sin notificar a
-  usuarios reales. Hoy no existe: "Tecnologico de Morelia" (propuesta como institución de prueba) tiene
-  nombre de institución real y no hay instituciones que coincidan con "prueba"/"test".
+- **Institución de pruebas**: el backend advierte que las alertas emitidas quedan registradas y visibles
+  por HTTP aunque FCM esté deshabilitado. No existe `dryRun`. **No se emitirá ninguna alerta real** hasta
+  que el equipo confirme una institución y cuentas exclusivamente de prueba.
+- `info.version`/`info.description` de OpenAPI desactualizados (dicen 0.3.0 y "No incluye alertas").
+- Áreas afectadas: AGENTS.md §8.1/§8.3 las contemplan, pero la API no las tiene. Hay que decidir si se
+  retiran del alcance o se añaden al backend.
+- Cartografía v1 vs v2: confirmar si las apps deben ignorar v1.
+- Persistir la `Idempotency-Key` fuera de memoria (sobrevivir a cierres de la app) queda como propuesta.
