@@ -10,15 +10,23 @@
 @Tags(['real-api'])
 library;
 
+import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:imsafe_lanzadores/app/app.dart';
 import 'package:imsafe_lanzadores/core/api/api_client.dart';
 import 'package:imsafe_lanzadores/core/config/app_config.dart';
 import 'package:imsafe_lanzadores/core/errors/api_failure.dart';
 import 'package:imsafe_lanzadores/core/logging/app_logger.dart';
+import 'package:imsafe_lanzadores/core/storage/secure_storage.dart';
 import 'package:imsafe_lanzadores/core/storage/token_store.dart';
 import 'package:imsafe_lanzadores/features/access/data/access_repository.dart';
+import 'package:imsafe_lanzadores/features/access/presentation/launcher_access_controller.dart';
+import 'package:imsafe_lanzadores/features/alerts/domain/alert_preparation.dart';
+import 'package:imsafe_lanzadores/features/alerts/presentation/alert_preparation_controller.dart';
 import 'package:imsafe_lanzadores/features/auth/data/auth_repository.dart';
+import 'package:imsafe_lanzadores/features/auth/presentation/session_controller.dart';
 
 import '../test/helpers/fakes.dart';
 
@@ -75,5 +83,60 @@ void main() {
     await auth.logout();
     expect(storage.values, isEmpty);
     expect(expired, 0);
+  }, skip: skip);
+
+  test('preparar alerta respeta capabilities.launcher de la API', () async {
+    final requests = <String>[];
+    final container = ProviderContainer(
+      retry: noAutomaticRetry,
+      overrides: [
+        appConfigProvider.overrideWithValue(
+          AppConfig.parse(environment: 'production', apiBaseUrl: _baseUrl),
+        ),
+        secureStorageProvider.overrideWithValue(storage),
+        appLoggerProvider.overrideWithValue(
+          AppLogger(AppEnvironment.production, sink: (_, _, _) {}),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    container
+        .read(dioProvider)
+        .interceptors
+        .add(
+          InterceptorsWrapper(
+            onRequest: (options, handler) {
+              requests.add('${options.method} ${options.path}');
+              handler.next(options);
+            },
+          ),
+        );
+
+    await container
+        .read(sessionControllerProvider.notifier)
+        .login(email: _email, password: _password);
+    final launcherAccess = await container.read(launcherAccessProvider.future);
+
+    for (final item in launcherAccess!.institutions) {
+      final provider = alertPreparationProvider(item.institution.id);
+      final sub = container.listen(provider, (_, _) {});
+      final result = await container.read(provider.future);
+      sub.close();
+      expect(
+        result.status,
+        item.isLauncher
+            ? AlertPreparationStatus.featureUnavailable
+            : AlertPreparationStatus.permissionDenied,
+        reason:
+            '${item.institution.name}: launcher=${item.isLauncher}, '
+            'administrator=${item.isAdministrator}',
+      );
+    }
+
+    await container.read(sessionControllerProvider.notifier).logout();
+    expect(requests.where((r) => !r.startsWith('GET ')), [
+      'POST /auth/login',
+      'POST /auth/logout',
+    ], reason: 'preparar una alerta no escribe nada en la API');
   }, skip: skip);
 }

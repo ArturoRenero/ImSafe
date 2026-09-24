@@ -10,6 +10,7 @@ import '../../../shared/widgets/status_message.dart';
 import '../../auth/presentation/logout_button.dart';
 import '../data/access_dtos.dart';
 import '../domain/launcher_access.dart';
+import 'institution_capability_tile.dart';
 import 'launcher_access_controller.dart';
 
 /// Estado de las solicitudes de acceso y envío de nuevas solicitudes.
@@ -80,6 +81,12 @@ class AccessScreen extends ConsumerWidget {
                             'La aprobación corresponde a la administración de '
                             'cada institución.',
                       ),
+                    if (access.institutions.isNotEmpty) ...[
+                      const SizedBox(height: 24),
+                      _SectionTitle('Mis instituciones'),
+                      for (final item in access.institutions)
+                        InstitutionCapabilityTile(item: item),
+                    ],
                     const SizedBox(height: 24),
                     _SectionTitle('Mis solicitudes'),
                     if (access.accessRequests.isEmpty)

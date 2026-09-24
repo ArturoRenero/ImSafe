@@ -6,6 +6,8 @@ import '../features/access/domain/launcher_access.dart';
 import '../features/access/presentation/access_screen.dart';
 import '../features/access/presentation/launcher_access_controller.dart';
 import '../features/access/presentation/launcher_home_screen.dart';
+import '../features/alerts/presentation/alert_institution_screen.dart';
+import '../features/alerts/presentation/alert_preparation_screen.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/register_screen.dart';
 import '../features/auth/presentation/session_controller.dart';
@@ -27,6 +29,13 @@ abstract final class AppRoutes {
 
   /// Inicio del lanzador autorizado (`capabilities.launcher` en la API).
   static const home = '/home';
+
+  /// Selección de institución para preparar una alerta.
+  static const alertInstitution = '/alerts/new';
+
+  /// Preparación de una alerta en una institución concreta.
+  static String alertPreparation(String institutionId) =>
+      '$alertInstitution/$institutionId';
 }
 
 const _publicRoutes = {AppRoutes.login, AppRoutes.register};
@@ -56,7 +65,11 @@ String? resolveRedirect({
   }
 
   if (launcherAccess.isAuthorizedLauncher) {
-    final allowed = location == AppRoutes.home || location == AppRoutes.access;
+    final allowed =
+        location == AppRoutes.home ||
+        location == AppRoutes.access ||
+        location == AppRoutes.alertInstitution ||
+        location.startsWith('${AppRoutes.alertInstitution}/');
     return allowed ? null : AppRoutes.home;
   }
   return goTo(AppRoutes.access);
@@ -100,6 +113,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.home,
         builder: (context, state) => const LauncherHomeScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.alertInstitution,
+        builder: (context, state) => const AlertInstitutionScreen(),
+        routes: [
+          GoRoute(
+            path: ':institutionId',
+            builder: (context, state) => AlertPreparationScreen(
+              institutionId: state.pathParameters['institutionId']!,
+            ),
+          ),
+        ],
       ),
     ],
   );

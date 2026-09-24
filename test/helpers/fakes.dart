@@ -100,6 +100,7 @@ Map<String, Object?> institutionJson({
   String id = '6ab4876f45cc209961dd09ad',
   String name = 'Institución Prueba',
   bool? launcher,
+  bool administrator = false,
 }) => {
   '_id': id,
   'name': name,
@@ -110,7 +111,7 @@ Map<String, Object?> institutionJson({
   'createdAt': '2026-09-01T10:00:00.000Z',
   'updatedAt': '2026-09-01T10:00:00.000Z',
   if (launcher != null)
-    'capabilities': {'administrator': false, 'launcher': launcher},
+    'capabilities': {'administrator': administrator, 'launcher': launcher},
 };
 
 Map<String, Object?> permissionJson({

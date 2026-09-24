@@ -88,7 +88,8 @@ void main() {
     expect(storage.values, storedSession(access: 'access-1'));
     expect(find.byType(AccessScreen), findsOneWidget);
     expect(find.textContaining('Pendiente de aprobación'), findsOneWidget);
-    expect(find.text('Institución Prueba'), findsOneWidget);
+    // En "Mis instituciones" y en la solicitud.
+    expect(find.text('Institución Prueba'), findsNWidgets(2));
   });
 
   testWidgets('sesión restaurada y autorizada por la API → inicio', (

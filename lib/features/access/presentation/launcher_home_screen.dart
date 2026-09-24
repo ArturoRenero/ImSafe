@@ -64,6 +64,19 @@ class LauncherHomeScreen extends ConsumerWidget {
                       ),
                     ),
                   const SizedBox(height: 16),
+                  FilledButton.icon(
+                    icon: const Icon(Icons.campaign_outlined),
+                    label: const Text('Generar alerta'),
+                    // Con una sola institución autorizada se selecciona sola.
+                    onPressed: () => context.push(
+                      access.launcherInstitutions.length == 1
+                          ? AppRoutes.alertPreparation(
+                              access.launcherInstitutions.single.institution.id,
+                            )
+                          : AppRoutes.alertInstitution,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   const StatusMessage(
                     tone: StatusTone.info,
                     message:

@@ -19,6 +19,10 @@ class LauncherAccess {
 
   bool get isAuthorizedLauncher => launcherInstitutions.isNotEmpty;
 
+  /// Institución del usuario con ese id, o `null` si la API no la reporta.
+  MyInstitution? institutionById(String institutionId) =>
+      institutions.where((i) => i.institution.id == institutionId).firstOrNull;
+
   /// Solicitudes que impiden crear otra para la misma institución según
   /// OpenAPI: una pendiente o un permiso aprobado.
   bool hasOpenRequestFor(String institutionId) => accessRequests.any(
