@@ -128,8 +128,30 @@ class _EmitAlertFormState extends ConsumerState<_EmitAlertForm> {
   final _otherDescription = TextEditingController();
   late EmergencyType? _type = widget.defaultType;
   bool _showTypeError = false;
+  bool _restoredPending = false;
 
   String get _scope => 'emit:${widget.institution.institution.id}';
+
+  @override
+  void initState() {
+    super.initState();
+    _restorePending();
+  }
+
+  /// Si en este teléfono quedó una emisión sin confirmar, la muestra con los
+  /// mismos datos: repetirla sin cambios reutiliza su `Idempotency-Key`.
+  Future<void> _restorePending() async {
+    final pending = await ref.read(pendingAlertCommandProvider(_scope).future);
+    if (!mounted || pending is! EmitAlert) return;
+    final type = widget.types.where((t) => t.type == pending.type).firstOrNull;
+    if (type == null) return;
+    setState(() {
+      _type = type;
+      _message.text = pending.message;
+      _otherDescription.text = pending.otherDescription ?? '';
+      _restoredPending = true;
+    });
+  }
 
   @override
   void dispose() {
@@ -254,6 +276,16 @@ class _EmitAlertFormState extends ConsumerState<_EmitAlertForm> {
             validator: (value) =>
                 validateAlertText(value, AlertTextRules.message),
           ),
+          if (_restoredPending && result == null) ...[
+            const SizedBox(height: 16),
+            const StatusMessage(
+              tone: StatusTone.info,
+              message:
+                  'En este teléfono hay una emisión cuyo resultado no se '
+                  'confirmó. Revisa las alertas activas: si no aparece, '
+                  'puedes repetirla sin cambios y imSafeAPI no la duplicará.',
+            ),
+          ],
           if (result case AsyncError(:final error)) ...[
             const SizedBox(height: 16),
             StatusMessage(

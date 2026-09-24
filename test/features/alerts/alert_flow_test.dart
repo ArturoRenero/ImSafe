@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -21,7 +23,10 @@ void main() {
 
   setUp(() => api = FakeApi());
 
-  Future<void> pumpApp(WidgetTester tester) async {
+  Future<void> pumpApp(
+    WidgetTester tester, {
+    Map<String, String> extraStorage = const {},
+  }) async {
     // Pantalla alta: los formularios caben sin desplazar la lista.
     tester.view
       ..physicalSize = const Size(800, 2000)
@@ -32,7 +37,7 @@ void main() {
         retry: noAutomaticRetry,
         overrides: fakeBackendOverrides(
           api: api,
-          storage: FakeSecureStorage(storedSession()),
+          storage: FakeSecureStorage({...storedSession(), ...extraStorage}),
         ),
         child: const ImSafeApp(),
       ),
@@ -289,5 +294,38 @@ void main() {
     });
     expect(find.text('Estado: Finalizada'), findsOneWidget);
     expect(find.text('Finalizar alerta'), findsNothing);
+  });
+
+  testWidgets('emisión sin confirmar guardada en el teléfono se recupera', (
+    tester,
+  ) async {
+    stubInstitutions([institutionJson(launcher: true)]);
+    await pumpApp(
+      tester,
+      extraStorage: {
+        'imsafe.alerts.pending.emit:$_institution': jsonEncode({
+          'key': '0b6f6a0e-7c43-4f0e-9d3a-1c2b3a4d5e6f',
+          'command': {
+            'kind': 'emit',
+            'institutionId': _institution,
+            'type': 'incendio',
+            'message': 'Salgan por la escalera norte.',
+            'otherDescription': null,
+          },
+        }),
+      },
+    );
+
+    await tap(tester, find.text('Generar alerta'));
+
+    expect(
+      find.textContaining('hay una emisión cuyo resultado no se confirmó'),
+      findsOneWidget,
+    );
+    expect(find.text('Salgan por la escalera norte.'), findsOneWidget);
+    final group = tester.widget<RadioGroup<String>>(
+      find.byType(RadioGroup<String>),
+    );
+    expect(group.groupValue, 'incendio');
   });
 }

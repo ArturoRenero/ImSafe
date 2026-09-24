@@ -17,19 +17,28 @@ const _alertId = '6ab4876f45cc209961dd0a01';
 
 void main() {
   late FakeApi api;
+  late FakeSecureStorage storage;
   late ProviderContainer container;
+
+  /// Contenedor nuevo sobre el mismo almacenamiento: equivale a cerrar y
+  /// volver a abrir la pantalla o la app.
+  ProviderContainer newContainer() {
+    final created = ProviderContainer(
+      retry: noAutomaticRetry,
+      overrides: fakeBackendOverrides(api: api, storage: storage),
+    );
+    addTearDown(created.dispose);
+    return created;
+  }
 
   setUp(() {
     api = FakeApi();
-    container = ProviderContainer(
-      retry: noAutomaticRetry,
-      overrides: fakeBackendOverrides(
-        api: api,
-        storage: FakeSecureStorage(storedSession()),
-      ),
-    );
-    addTearDown(container.dispose);
+    storage = FakeSecureStorage(storedSession());
+    container = newContainer();
   });
+
+  bool hasPendingKey() =>
+      storage.values.keys.any((k) => k.startsWith('imsafe.alerts.pending.'));
 
   AlertCommandController controller() {
     final provider = alertCommandProvider('test');
@@ -210,5 +219,35 @@ void main() {
         'reason': 'Terminó la emergencia.',
       },
     ]);
+  });
+
+  test('la clave se guarda antes de enviar y sobrevive al cierre', () async {
+    api.on('POST', _alertsPath, (options) async {
+      expect(hasPendingKey(), isTrue, reason: 'persistida antes del envío');
+      timeoutError(options);
+    });
+    await controller().send(sismo);
+    expect(hasPendingKey(), isTrue);
+    container.dispose();
+
+    // Pantalla/app reabierta: repetir el mismo comando reutiliza la clave.
+    container = newContainer();
+    api.on('POST', _alertsPath, (_) async => jsonBody(acceptedJson(), 202));
+    final restored = container.read(pendingAlertCommandProvider('test').future);
+    expect(await restored, sismo);
+    expect(await controller().send(sismo), isNotNull);
+
+    final keys = commands().map((r) => r.headers['Idempotency-Key']).toList();
+    expect(keys, hasLength(2));
+    expect(keys.first, keys.last);
+    expect(hasPendingKey(), isFalse, reason: 'se borra al aceptarse');
+  });
+
+  test('rechazo 4xx borra la clave guardada', () async {
+    api.on('POST', _alertsPath, (_) async => apiError(403, 'FORBIDDEN'));
+
+    await controller().send(sismo);
+
+    expect(hasPendingKey(), isFalse);
   });
 }
