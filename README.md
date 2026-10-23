@@ -28,8 +28,7 @@ Una persona administradora podrá:
 
 Las personas autorizadas podrán crear una cuenta, solicitar acceso a una institución y, tras su aprobación, emitir y finalizar alertas. La interfaz ofrecerá sismo como opción predeterminada; para otros incidentes permitirá seleccionar tipo de emergencia y áreas afectadas (por ejemplo, incendio, inundación, fuga de gas u otro evento configurado).
 
-Cada alerta incluirá, al menos, institución, tipo, áreas afectadas cuando aplique, instrucciones breves, hora de emisión, estado y persona emisora. El sistema registrará las acciones realizadas. Los lanzadores podrán consultar reportes de incidentes de usuarios finales y decidir, de acuerdo con los protoc
-olos institucionales, si corresponde emitir una alerta.
+Cada alerta incluirá, al menos, institución, tipo, áreas afectadas cuando aplique, instrucciones breves, hora de emisión, estado y persona emisora. El sistema registrará las acciones realizadas. Los lanzadores podrán consultar reportes de incidentes de usuarios finales y decidir, de acuerdo con los protocolos institucionales, si corresponde emitir una alerta.
 
 ### 2.3 Aplicación móvil para usuarios finales
 
@@ -124,7 +123,39 @@ Documento de alcance funcional para orientar el desarrollo inicial de **imSafeAP
 
 Este repositorio corresponde actualmente al desarrollo de **imSafe — aplicación móvil para lanzadores de alertas** (Flutter/Dart, Android e iOS). Las reglas para agentes y las decisiones aprobadas están en [`AGENTS.md`](AGENTS.md).
 
-Estado: estándar compartido (feature-first, Riverpod, Dio, `go_router`, tres entornos) con autenticación real contra imSafeAPI, restauración de sesión y consulta/solicitud de acceso como lanzador. Alertas y reportes quedan pendientes porque imSafeAPI v0.2.0 aún no los expone. Contrato usado: [`docs/API_CONTRACT_LANZADORES.md`](docs/API_CONTRACT_LANZADORES.md).
+Arquitectura: estándar compartido de `AGENTS.md` §5.1 (feature-first con capas `data/domain/presentation`, Riverpod, Dio, `go_router`, `flutter_secure_storage`, tres entornos). Contrato usado: imSafeAPI 0.4.0, resumido en [`docs/API_CONTRACT_LANZADORES.md`](docs/API_CONTRACT_LANZADORES.md).
+
+### Estado actual (verificado 2026-10-22)
+
+`flutter analyze` sin observaciones y `flutter test` con **81 pruebas aprobadas**. Las 3 pruebas de `integration_api/` pasan contra `https://api.imsafe.tlajomulco.tecnm.mx`.
+
+Recorrido completo probado en el Samsung Galaxy S24 (Android 16) contra la API de producción, con la institución de pruebas **«imSafe — Pruebas»** (`6adaaa308e45f34e56961ec6`):
+
+1. Una sesión guardada de la base anterior es rechazada y la app vuelve a «Inicia sesión».
+2. Inicio de sesión; la cuenta aparece como administradora sin permiso de lanzador (administrador no implica lanzador).
+3. Búsqueda de la institución, solicitud de acceso con confirmación → «Pendiente de aprobación».
+4. Tras aprobarla el administrador, «Actualizar estado» muestra «Autorizado como lanzador».
+5. Emisión de una alerta de sismo con mensaje «PRUEBA…» y confirmación → `202`, «Activa», revisión 1, expira a los 30 min.
+6. Finalización con motivo → «Finalizada», revisión 2; la API registra los eventos `created` y `closed`.
+
+| Función | Estado |
+|---|---|
+| Registro, inicio y cierre de sesión; restauración de la sesión guardada | Implementado |
+| Renovación de sesión serializada (el refresh token es de un solo uso) | Implementado |
+| Búsqueda de instituciones, solicitud de acceso como lanzador y estado de las solicitudes | Implementado |
+| Acceso al flujo de alertas solo con `capabilities.launcher == true` (administrador no implica lanzador) | Implementado |
+| Emisión de alertas: catálogo de tipos de la API, sismo preseleccionado, descripción para tipos que la exigen, confirmación explícita | Implementado |
+| Alertas activas, detalle con estado real, actualización del mensaje, cierre y cancelación con `expectedRevision` | Implementado |
+| Estado de distribución del último evento (`delivery-status`) | Implementado |
+| `Idempotency-Key` guardada en el teléfono antes de enviar, sin reintentos automáticos (`AGENTS.md` §14) | Implementado |
+| Consulta de reportes de incidentes | Pendiente: imSafeAPI no ofrece todavía esas operaciones |
+| Áreas afectadas y alcance de difusión | Omitido por decisión del usuario (`AGENTS.md` §8.3) |
+| Historial/auditoría de eventos de una alerta (`/events`) | Existe en la API; la app aún no lo usa |
+| Notificaciones push para lanzadores, caché local y modo offline | Pendiente de decisión (`AGENTS.md` §20) |
+
+> **Alertas reales.** El flujo de emisión ya se usó en presentaciones contra imSafeAPI. El 2026-10-22 la API y la base de datos se trasladaron a `api.imsafe.tlajomulco.tecnm.mx` y se eliminaron todas las instituciones y cuentas anteriores. Las alertas emitidas quedan registradas y la API no tiene modo de prueba: emitir, actualizar o finalizar alertas solo en instituciones creadas para pruebas o presentaciones, nunca en instituciones reales.
+
+> **Pendiente en el servidor (2026-10-22):** las alertas se registran correctamente, pero no se distribuyen. `POST /devices` responde `503 DEVICES_NOT_CONFIGURED` (falta `PUSH_TOKEN_ENCRYPTION_KEY` en la configuración de imSafeAPI), así que ningún teléfono de usuario final puede registrarse ni suscribirse. Además, el estado de distribución permanece `pending`: el trabajador de notificaciones (`npm run worker:notifications`) no está procesando eventos. Ambos se resuelven en el servidor, no en las apps.
 
 ### Ejecutar
 
@@ -144,16 +175,33 @@ El entorno y la URL de imSafeAPI se pasan en compilación (solo configuración p
 flutter run -d <DEVICE_ID> --dart-define=IMSAFE_ENV=production --dart-define=IMSAFE_API_BASE_URL=https://api.imsafe.tlajomulco.tecnm.mx/api/v1
 ```
 
+La URL debe terminar en `/api/v1`; `GET https://api.imsafe.tlajomulco.tecnm.mx/health/ready` comprueba que la API está disponible. La administración web está en `https://imsafe.tlajomulco.tecnm.mx`. Si el dominio de la API cambia, basta con compilar de nuevo con el nuevo `IMSAFE_API_BASE_URL`; la URL no está en el código.
+
 `IMSAFE_ENV` admite `development` (por defecto), `staging` y `production`; `staging` y `production` exigen `https`. Android no permite tráfico HTTP en claro (no está habilitado).
 
 ### Pruebas contra la API real
 
-`flutter test` nunca usa la red. Las pruebas contra imSafeAPI real están separadas en `integration_api/`, solo hacen login, lecturas propias y logout (nunca alertas ni solicitudes de acceso), y se omiten si faltan credenciales:
+`flutter test` nunca usa la red. Las pruebas contra imSafeAPI real están separadas en `integration_api/`. Solo hacen login, lecturas (perfil, instituciones, solicitudes, catálogo de tipos y alertas activas) y logout; comprueban que no se escribe nada más. Nunca emiten alertas ni envían solicitudes de acceso, y se omiten si faltan credenciales:
 
 ```bash
 flutter test integration_api --dart-define=IMSAFE_API_BASE_URL=https://api.imsafe.tlajomulco.tecnm.mx/api/v1 --dart-define=IMSAFE_TEST_EMAIL=<correo> --dart-define=IMSAFE_TEST_PASSWORD=<contraseña>
 ```
 
 Por ahora solo se trabaja Android; la compilación para iOS requiere macOS con Xcode.
+
+### Repositorios relacionados
+
+Cada componente de imSafe es un repositorio independiente con su propia documentación. En la copia local de trabajo se organizan así:
+
+```text
+ImSafe/
+├── lanzadores/        este repositorio (app de lanzadores)
+├── usuarios/          app de usuarios finales (imsafe_usuarios)
+└── administracion/
+    ├── imSafeAPI/     API central
+    └── imSafeWebApp/  administración web
+```
+
+La clave de la cuenta de servicio de Firebase se guarda fuera de los repositorios y nunca se versiona. El estado anterior de la app está en [`docs/snapshots/`](docs/snapshots/) como registro histórico.
 
 > El nombre de paquete `imsafe_lanzadores` y los identificadores `com.example.imsafe_lanzadores` (Android `applicationId` / iOS Bundle ID) son **temporales** y deben definirse antes de cualquier publicación.

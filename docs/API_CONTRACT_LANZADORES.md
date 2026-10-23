@@ -12,6 +12,7 @@
 
 - Base URL (production): `https://api.imsafe.tlajomulco.tecnm.mx/api/v1` (se pasa con `IMSAFE_API_BASE_URL`, nunca en el código).
 - OpenAPI: `https://api.imsafe.tlajomulco.tecnm.mx/openapi.json` (`servers: [{ url: "/" }]`).
+- Administración web: `https://imsafe.tlajomulco.tecnm.mx`.
 - Readiness: `GET /health/ready` → `200 {"status":"ok"}` / `503`.
 
 ## Autenticación (`securitySchemes.bearerAuth`)
@@ -145,9 +146,13 @@ usuarios finales. Lanzadores no registra dispositivos ni usa `installationBearer
 
 ## PENDIENTE EN BACKEND / POR DEFINIR
 
-- **Institución de pruebas**: el backend advierte que las alertas emitidas quedan registradas y visibles
-  por HTTP aunque FCM esté deshabilitado. No existe `dryRun`. **No se emitirá ninguna alerta real** hasta
-  que el equipo confirme una institución y cuentas exclusivamente de prueba.
+- **Institución de pruebas**: al trasladar la API (2026-10-22) se eliminaron las instituciones y cuentas
+  anteriores. La institución de pruebas vigente es «imSafe — Pruebas» (`6adaaa308e45f34e56961ec6`).
+  Las alertas quedan registradas y visibles por HTTP aunque FCM esté deshabilitado, y no existe `dryRun`:
+  emitir solo en instituciones de pruebas o presentaciones, nunca en instituciones reales.
+- **Distribución en el servidor nuevo**: `POST /devices` responde `503 DEVICES_NOT_CONFIGURED` (falta
+  `PUSH_TOKEN_ENCRYPTION_KEY`) y el outbox de las alertas permanece `pending` (el trabajador de
+  notificaciones no procesa eventos). Las alertas se registran, pero no llegan a ningún teléfono.
 - `info.version`/`info.description` de OpenAPI desactualizados (dicen 0.3.0 y "No incluye alertas").
 - Áreas afectadas: **omitidas por ahora por decisión del usuario** (AGENTS.md §8.3); retomarlas requiere
   contrato del backend.
