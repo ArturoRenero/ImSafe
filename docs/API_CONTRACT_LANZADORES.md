@@ -150,9 +150,10 @@ usuarios finales. Lanzadores no registra dispositivos ni usa `installationBearer
   anteriores. La institución de pruebas vigente es «imSafe — Pruebas» (`6adaaa308e45f34e56961ec6`).
   Las alertas quedan registradas y visibles por HTTP aunque FCM esté deshabilitado, y no existe `dryRun`:
   emitir solo en instituciones de pruebas o presentaciones, nunca en instituciones reales.
-- **Distribución en el servidor nuevo**: `POST /devices` responde `503 DEVICES_NOT_CONFIGURED` (falta
-  `PUSH_TOKEN_ENCRYPTION_KEY`) y el outbox de las alertas permanece `pending` (el trabajador de
-  notificaciones no procesa eventos). Las alertas se registran, pero no llegan a ningún teléfono.
+- **Distribución**: verificada el 2026-10-23 en el servidor nuevo. `POST /devices` responde `201` y una
+  alerta de prueba llegó por FCM a la app de usuarios finales (`outboxState: done`, `accepted: 1`,
+  `received: 1`). Si el outbox vuelve a quedarse en `pending`, el trabajador de notificaciones del
+  servidor no está corriendo.
 - `info.version`/`info.description` de OpenAPI desactualizados (dicen 0.3.0 y "No incluye alertas").
 - Áreas afectadas: **omitidas por ahora por decisión del usuario** (AGENTS.md §8.3); retomarlas requiere
   contrato del backend.

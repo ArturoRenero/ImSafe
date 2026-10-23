@@ -155,7 +155,7 @@ Recorrido completo probado en el Samsung Galaxy S24 (Android 16) contra la API d
 
 > **Alertas reales.** El flujo de emisión ya se usó en presentaciones contra imSafeAPI. El 2026-10-22 la API y la base de datos se trasladaron a `api.imsafe.tlajomulco.tecnm.mx` y se eliminaron todas las instituciones y cuentas anteriores. Las alertas emitidas quedan registradas y la API no tiene modo de prueba: emitir, actualizar o finalizar alertas solo en instituciones creadas para pruebas o presentaciones, nunca en instituciones reales.
 
-> **Pendiente en el servidor (2026-10-22):** las alertas se registran correctamente, pero no se distribuyen. `POST /devices` responde `503 DEVICES_NOT_CONFIGURED` (falta `PUSH_TOKEN_ENCRYPTION_KEY` en la configuración de imSafeAPI), así que ningún teléfono de usuario final puede registrarse ni suscribirse. Además, el estado de distribución permanece `pending`: el trabajador de notificaciones (`npm run worker:notifications`) no está procesando eventos. Ambos se resuelven en el servidor, no en las apps.
+> **Distribución verificada (2026-10-23).** Una alerta de prueba emitida desde esta app en «imSafe — Pruebas» llegó como notificación a la app de usuarios finales en el mismo Galaxy S24, con la app en segundo plano («Alerta: Sismo · imSafe — Pruebas»). El detalle de la alerta mostró «procesada para todos los destinatarios», 1 aceptada por el proveedor y 1 recibida. Al finalizarla llegó «Finalizada: Sismo · imSafe — Pruebas», que reemplazó a la notificación anterior. Si las alertas vuelven a quedarse en `pending`, el trabajador de notificaciones del servidor (`npm run worker:notifications`) no está corriendo.
 
 ### Ejecutar
 
