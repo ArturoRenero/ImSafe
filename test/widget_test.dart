@@ -41,7 +41,7 @@ void main() {
       )
       ..on(
         'GET',
-        '/institutions/6ab4876f45cc209961dd09ad',
+        '/institutions/dddddddddddddddddddd09ad',
         (_) async => jsonBody(institutionJson(), 200),
       );
   }

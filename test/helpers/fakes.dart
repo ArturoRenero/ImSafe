@@ -106,7 +106,7 @@ Map<String, Object?> userJson() => {
 };
 
 Map<String, Object?> institutionJson({
-  String id = '6ab4876f45cc209961dd09ad',
+  String id = 'dddddddddddddddddddd09ad',
   String name = 'Institución Prueba',
   bool? launcher,
   bool administrator = false,
@@ -125,9 +125,9 @@ Map<String, Object?> institutionJson({
 
 Map<String, Object?> permissionJson({
   String status = 'pending',
-  String institutionId = '6ab4876f45cc209961dd09ad',
+  String institutionId = 'dddddddddddddddddddd09ad',
 }) => {
-  '_id': '6ab4876f45cc209961dd0a00',
+  '_id': 'dddddddddddddddddddd0a00',
   'institutionId': institutionId,
   'userId': '507f1f77bcf86cd799439011',
   'role': 'launcher',
@@ -196,8 +196,8 @@ Map<String, Object?> emergencyTypesJson() => {
 };
 
 Map<String, Object?> alertJson({
-  String id = '6ab4876f45cc209961dd0a01',
-  String institutionId = '6ab4876f45cc209961dd09ad',
+  String id = 'dddddddddddddddddddd0a01',
+  String institutionId = 'dddddddddddddddddddd09ad',
   String type = 'sismo',
   String state = 'active',
   int revision = 1,
@@ -214,7 +214,7 @@ Map<String, Object?> alertJson({
   'updatedAt': '2026-09-24T12:00:00.000Z',
   'expiresAt': '2026-09-24T12:30:00.000Z',
   'endedAt': null,
-  'lastEventId': '6ab4876f45cc209961dd0b01',
+  'lastEventId': 'dddddddddddddddddddd0b01',
 };
 
 Map<String, Object?> alertPageJson(List<Object?> items) => {
@@ -223,18 +223,18 @@ Map<String, Object?> alertPageJson(List<Object?> items) => {
 };
 
 Map<String, Object?> acceptedJson({
-  String alertId = '6ab4876f45cc209961dd0a01',
+  String alertId = 'dddddddddddddddddddd0a01',
   int revision = 1,
 }) => {
   'alertId': alertId,
-  'eventId': '6ab4876f45cc209961dd0b02',
+  'eventId': 'dddddddddddddddddddd0b02',
   'acceptedRevision': revision,
   'acceptedAt': '2026-09-24T12:00:00.000Z',
 };
 
 Map<String, Object?> deliveryJson() => {
-  'alertId': '6ab4876f45cc209961dd0a01',
-  'eventId': '6ab4876f45cc209961dd0b01',
+  'alertId': 'dddddddddddddddddddd0a01',
+  'eventId': 'dddddddddddddddddddd0b01',
   'revision': 1,
   'outboxState': 'pending',
   'fanoutComplete': false,

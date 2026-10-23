@@ -19,7 +19,7 @@ void main() {
     final item = MyInstitution.fromJson(institutionJson(launcher: true));
     expect(item.isLauncher, isTrue);
     expect(item.isAdministrator, isFalse);
-    expect(item.institution.id, '6ab4876f45cc209961dd09ad');
+    expect(item.institution.id, 'dddddddddddddddddddd09ad');
   });
 
   test('Permission acepta exactamente los estados de OpenAPI', () {
@@ -89,7 +89,7 @@ void main() {
     });
 
     test('solicitud abierta = pendiente o aprobada', () {
-      const id = '6ab4876f45cc209961dd09ad';
+      const id = 'dddddddddddddddddddd09ad';
       expect(access(requests: ['pending']).hasOpenRequestFor(id), isTrue);
       expect(access(requests: ['approved']).hasOpenRequestFor(id), isTrue);
       expect(access(requests: ['rejected']).hasOpenRequestFor(id), isFalse);

@@ -8,8 +8,8 @@ import 'package:imsafe_lanzadores/features/alerts/presentation/alert_preparation
 
 import '../../helpers/fakes.dart';
 
-const _launcherId = '6ab4876f45cc209961dd0001';
-const _adminId = '6ab4876f45cc209961dd0002';
+const _launcherId = 'dddddddddddddddddddd0001';
+const _adminId = 'dddddddddddddddddddd0002';
 
 void main() {
   late FakeApi api;
@@ -84,7 +84,7 @@ void main() {
   });
 
   test('institución que la API no reporta → permiso denegado', () async {
-    final result = await prepare('6ab4876f45cc209961dd9999');
+    final result = await prepare('dddddddddddddddddddd9999');
 
     expect(result.status, AlertPreparationStatus.permissionDenied);
     expect(result.institution, isNull);

@@ -11,9 +11,9 @@ import 'package:imsafe_lanzadores/features/alerts/presentation/alert_command_con
 
 import '../../helpers/fakes.dart';
 
-const _institution = '6ab4876f45cc209961dd09ad';
+const _institution = 'dddddddddddddddddddd09ad';
 const _alertsPath = '/institutions/$_institution/alerts';
-const _alertId = '6ab4876f45cc209961dd0a01';
+const _alertId = 'dddddddddddddddddddd0a01';
 
 void main() {
   late FakeApi api;

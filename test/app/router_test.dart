@@ -71,12 +71,12 @@ void main() {
   test('flujo de alertas solo con launcher reportado por la API', () {
     final launcher = AsyncData<LauncherAccess?>(_access(launcher: true));
     final notLauncher = AsyncData<LauncherAccess?>(_access(launcher: false));
-    const id = '6ab4876f45cc209961dd09ad';
+    const id = 'dddddddddddddddddddd09ad';
     final alertRoutes = [
       AppRoutes.alertInstitution,
       AppRoutes.alertEmit(id),
       AppRoutes.institutionAlerts(id),
-      AppRoutes.alertDetail(id, '6ab4876f45cc209961dd0a01'),
+      AppRoutes.alertDetail(id, 'dddddddddddddddddddd0a01'),
     ];
 
     for (final route in alertRoutes) {

@@ -14,9 +14,9 @@ import 'package:imsafe_lanzadores/features/alerts/presentation/emit_alert_screen
 
 import '../../helpers/fakes.dart';
 
-const _institution = '6ab4876f45cc209961dd09ad';
+const _institution = 'dddddddddddddddddddd09ad';
 const _alertsPath = '/institutions/$_institution/alerts';
-const _alertId = '6ab4876f45cc209961dd0a01';
+const _alertId = 'dddddddddddddddddddd0a01';
 
 void main() {
   late FakeApi api;
@@ -199,17 +199,17 @@ void main() {
   ) async {
     stubInstitutions([
       institutionJson(
-        id: '6ab4876f45cc209961dd0001',
+        id: 'dddddddddddddddddddd0001',
         name: 'A',
         launcher: true,
       ),
       institutionJson(
-        id: '6ab4876f45cc209961dd0002',
+        id: 'dddddddddddddddddddd0002',
         name: 'B',
         launcher: true,
       ),
       institutionJson(
-        id: '6ab4876f45cc209961dd0003',
+        id: 'dddddddddddddddddddd0003',
         name: 'C',
         launcher: false,
         administrator: true,
