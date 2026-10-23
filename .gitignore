@@ -9,6 +9,12 @@ venv/
 node_modules/
 .DS_Store
 
+# --- Secretos de servicio (nunca en el repositorio) ---
+# Claves de cuenta de servicio de Google/Firebase. Lanzadores no usa
+# credenciales de Firebase (AGENTS.md); el backend las recibe fuera del repo.
+*service-account*.json
+*-firebase-adminsdk-*.json
+
 # --- Flutter (plantilla generada por `flutter create`) ---
 # Miscellaneous
 *.class
@@ -52,4 +58,5 @@ app.*.map.json
 # Widget Preview related
 .widget_preview/
 
-*.txt
+# Instrucciones iniciales de arranque, sustituidas por AGENTS.md §5.1.
+/EstructuraFlutter.txt
